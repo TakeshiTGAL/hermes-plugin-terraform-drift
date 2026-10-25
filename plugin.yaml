@@ -1,0 +1,22 @@
+name: terraform-drift
+version: 0.1.0
+manifest_version: 2
+requires_hermes: ">=0.21.4"
+description: >
+  Compare pinned Terraform provider and module versions with the public
+  registry. Tools: terraform_drift and terraform_drift_digest. No init,
+  plan, apply, or state write.
+author: TakeshiTGAL
+license: MIT
+platforms:
+  - linux
+  - macos
+  - windows
+provides_tools:
+  - terraform_drift
+  - terraform_drift_digest
+provides_hooks: []
+python_dependencies: []
+tags:
+  - terraform
+  - registry
