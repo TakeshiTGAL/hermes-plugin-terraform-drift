@@ -9,7 +9,7 @@ Before the call, write the directory path and that the call only reads .tf files
 
 ## What to call
 
-For a folder of Terraform files, call terraform_drift with directory set to that folder. An absolute path is used as given. A relative path is the session's working directory on Hermes v0.23.1 and later, and this process's working directory on older Hermes. Quote pin, latest, relation, and any breaking or security changelog lines. latest is present only when registry_status is ok. A timeout, a failed read, or an inexact module constraint is not a latest version and is not "up to date".
+For a folder of Terraform files, call terraform_drift with directory set to that folder. An absolute path is used as given. A relative path is joined to the directory Hermes v0.23.1 reports for the session: the process directory in the classic CLI, and the session's recorded directory on the gateway. On older Hermes the relative path uses the process directory. Quote pin, latest, relation, and any breaking or security changelog lines. latest is present only when registry_status is ok. A timeout, a failed read, or an inexact module constraint is not a latest version and is not "up to date".
 
 relation behind means the exact pin is a lower semver than the highest stable registry version. 1.10.0 is after 1.9.0. A pre-release is not the latest stable version.
 
