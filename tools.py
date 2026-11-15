@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any, Callable
 
 from .errors import BAD_ARGUMENT, INTERNAL, fail
@@ -10,6 +11,7 @@ from .report import compare_directory, digest
 from .schemas import ALL_SCHEMAS
 
 _bound: dict[str, Any] = {}
+_context: Any = None
 
 
 def bind(**kwargs: Any) -> None:
@@ -17,8 +19,30 @@ def bind(**kwargs: Any) -> None:
     _bound.update(kwargs)
 
 
+def note_context(ctx: Any) -> None:
+    global _context
+    _context = ctx
+
+
 def reset() -> None:
+    global _context
     _bound.clear()
+    _context = None
+
+
+def _session_base() -> str | None:
+    """Absolute session directory on Hermes v0.23.1+, else None (process cwd)."""
+    fn = getattr(_context, "session_cwd", None)
+    if not callable(fn):
+        return None
+    try:
+        value = fn()
+    except Exception:
+        # A session lookup that fails must leave the process directory in place.
+        return None
+    if isinstance(value, str) and value and Path(value).is_absolute() and ".." not in Path(value).parts:
+        return value
+    return None
 
 
 def _dump(payload: dict) -> str:
@@ -37,7 +61,12 @@ def _drift(args: dict) -> dict:
     rejected = _directory(args)
     if rejected:
         return rejected
-    return compare_directory(args["directory"], transport=_bound.get("transport"), clock=_bound.get("clock"))
+    return compare_directory(
+        args["directory"],
+        transport=_bound.get("transport"),
+        clock=_bound.get("clock"),
+        base=_session_base(),
+    )
 
 
 def _digest(args: dict) -> dict:
@@ -52,6 +81,7 @@ def _digest(args: dict) -> dict:
         cadence,
         transport=_bound.get("transport"),
         clock=_bound.get("clock"),
+        base=_session_base(),
     )
 
 

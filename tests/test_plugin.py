@@ -499,6 +499,84 @@ def test_dotdot_refused(tmp_path):
     assert "components" not in result
 
 
+class _Session:
+    def __init__(self, value):
+        self.value = value
+
+    def session_cwd(self):
+        return self.value
+
+
+class _SessionFails:
+    def session_cwd(self):
+        raise RuntimeError("no session")
+
+
+def test_relative_directory_uses_session_cwd(tmp_path, monkeypatch):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    tree(proj)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    use()
+    tools.note_context(_Session(str(tmp_path)))
+    result = call("terraform_drift", {"directory": "proj"})
+    assert result["ok"] is True
+    assert component(result, "registry.terraform.io/hashicorp/random")["pin"] == "3.6.0"
+    digest_result = call("terraform_drift_digest", {"directory": "proj"})
+    assert digest_result["ok"] is True
+
+
+def test_session_cwd_wins_over_process_directory(tmp_path, monkeypatch):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    tree(proj)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.chdir(tmp_path)
+    use()
+    tools.note_context(_Session(str(empty)))
+    result = call("terraform_drift", {"directory": "proj"})
+    assert result["error_type"] == "path_missing"
+
+
+def test_missing_session_cwd_keeps_process_directory(tmp_path, monkeypatch):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    tree(proj)
+    monkeypatch.chdir(tmp_path)
+    use()
+    tools.note_context(object())
+    assert call("terraform_drift", {"directory": "proj"})["ok"] is True
+    tools.note_context(_SessionFails())
+    assert call("terraform_drift", {"directory": "proj"})["ok"] is True
+    tools.note_context(_Session(""))
+    assert call("terraform_drift", {"directory": "proj"})["ok"] is True
+    tools.note_context(_Session("relative/nope"))
+    assert call("terraform_drift", {"directory": "proj"})["ok"] is True
+    tools.note_context(_Session(str(tmp_path / "a" / ".." / "b")))
+    assert call("terraform_drift", {"directory": "proj"})["ok"] is True
+
+
+def test_absolute_directory_ignores_session_cwd(tmp_path, monkeypatch):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    tree(proj)
+    monkeypatch.chdir(tmp_path)
+    use()
+    tools.note_context(_Session(str(tmp_path / "does-not-exist")))
+    result = call("terraform_drift", {"directory": str(proj)})
+    assert result["ok"] is True
+    assert component(result, "registry.terraform.io/hashicorp/random")["pin"] == "3.6.0"
+
+
+def test_relative_dotdot_is_refused_against_the_session(tmp_path):
+    tools.note_context(_Session(str(tmp_path)))
+    result = call("terraform_drift", {"directory": "proj/../../etc"})
+    assert result["error_type"] == "path_escape"
+
+
 def _null_tf() -> str:
     return (
         'terraform { required_providers { other = { source = "hashicorp/null" version = "9.8.7" } } }\n'

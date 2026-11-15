@@ -441,10 +441,24 @@ def _safe_relative(root: Path, path: Path) -> str | None:
     return relative
 
 
-def _lexical_escape(directory: str) -> bool:
+def _work_root(base: str | None) -> Path:
+    """Directory a relative path is joined to.
+
+    ``base`` is the calling session's working directory when Hermes has one.
+    A missing, relative, or ``..`` base keeps the process working directory,
+    which is what a direct call and Hermes before v0.23.1 already used.
+    """
+    if isinstance(base, str) and base:
+        path = Path(base)
+        if path.is_absolute() and ".." not in path.parts:
+            return path
+    return Path.cwd()
+
+
+def _lexical_escape(directory: str, base: str | None = None) -> bool:
     path = Path(directory)
     if not path.is_absolute():
-        path = Path.cwd() / path
+        path = _work_root(base) / path
     return any(part == ".." for part in path.parts)
 
 
@@ -484,16 +498,16 @@ def _argument_symlink(root: Path) -> bool:
     return False
 
 
-def collect(directory: str) -> dict:
+def collect(directory: str, base: str | None = None) -> dict:
     if not isinstance(directory, str) or not directory or len(directory) > 4096:
         return {"error": "bad_argument"}
     if any(ord(char) < 32 or ord(char) == 127 for char in directory):
         return {"error": "bad_argument"}
-    if _lexical_escape(directory):
+    if _lexical_escape(directory, base):
         return {"error": "path_escape"}
     root = Path(directory)
     if not root.is_absolute():
-        root = Path.cwd() / root
+        root = _work_root(base) / root
     if _argument_symlink(root):
         return {"error": "path_symlink"}
     if not root.exists():

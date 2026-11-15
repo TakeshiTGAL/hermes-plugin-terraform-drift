@@ -253,8 +253,8 @@ def _public(row: dict) -> dict:
     }
 
 
-def compare_directory(directory: str, *, transport: Callable | None = None, clock: Callable[[], float] | None = None) -> dict:
-    collected = collect(directory)
+def compare_directory(directory: str, *, transport: Callable | None = None, clock: Callable[[], float] | None = None, base: str | None = None) -> dict:
+    collected = collect(directory, base)
     if collected["error"]:
         error_type, error, next_step = _PATH_ERRORS[collected["error"]]
         return fail(error_type, error, next_step)
@@ -304,7 +304,7 @@ def _line(row: dict) -> str:
     return text
 
 
-def digest(directory: str, known: dict | None = None, cadence: str | None = None, *, transport: Callable | None = None, clock: Callable[[], float] | None = None) -> dict:
+def digest(directory: str, known: dict | None = None, cadence: str | None = None, *, transport: Callable | None = None, clock: Callable[[], float] | None = None, base: str | None = None) -> dict:
     if cadence is None:
         cadence = "daily"
     if not isinstance(cadence, str) or cadence not in {"daily", "weekly"}:
@@ -313,7 +313,7 @@ def digest(directory: str, known: dict | None = None, cadence: str | None = None
         return fail(BAD_ARGUMENT, "known must be a map of registry id to version.", "Omit known, or pass the previous seen map.")
     if isinstance(known, dict) and len(known) > MAX_COMPONENTS:
         return fail(BAD_ARGUMENT, "known has too many ids.", "Pass at most 30 ids from the previous seen map.")
-    report = compare_directory(directory, transport=transport, clock=clock)
+    report = compare_directory(directory, transport=transport, clock=clock, base=base)
     if not report.get("ok"):
         return report
     baseline = "missing" if known is None else "present"

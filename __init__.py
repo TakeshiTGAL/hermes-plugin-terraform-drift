@@ -9,6 +9,7 @@ _SKILL = Path(__file__).resolve().parent / "skills" / "terraform-drift" / "SKILL
 
 
 def register(ctx) -> None:
+    tools.note_context(ctx)
     for schema in schemas.ALL_SCHEMAS:
         ctx.register_tool(
             name=schema["name"],
