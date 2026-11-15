@@ -1133,6 +1133,31 @@ def test_register_shape():
     assert len(seen[2][1]) <= 223
 
 
+def test_register_hands_the_session_to_the_tools(tmp_path, monkeypatch):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    tree(proj)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    use()
+
+    class Ctx:
+        def register_tool(self, **kwargs):
+            pass
+
+        def register_skill(self, name, path, description=""):
+            pass
+
+        def session_cwd(self):
+            return str(tmp_path)
+
+    from terraform_drift import register
+    register(Ctx())
+    result = call("terraform_drift", {"directory": "proj"})
+    assert result["ok"] is True
+
+
 def test_skill_and_plugin_agree():
     text = (ROOT / "plugin.yaml").read_text(encoding="utf-8")
     assert 'requires_hermes: ">=0.21.4"' in text
